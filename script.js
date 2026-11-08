@@ -1,6 +1,6 @@
 ﻿const particles = document.getElementById('particles');
 
-// Лёгкие розоватые частицы на фоне
+// Розоватые частицы
 if (particles) {
     for (let i = 0; i < 180; i++) {
         const dot = document.createElement('span');
@@ -20,21 +20,17 @@ if (particles) {
     }
 }
 
-// Наклон карточки в сторону курсора
+// Наклон карточки
 const profile = document.getElementById('profile');
 
 if (profile && window.matchMedia('(pointer: fine)').matches) {
     profile.addEventListener('pointermove', (event) => {
         const rect = profile.getBoundingClientRect();
-
         const x = (event.clientX - rect.left) / rect.width;
         const y = (event.clientY - rect.top) / rect.height;
 
-        const rotateY = (x - 0.5) * 9;
-        const rotateX = (0.5 - y) * 9;
-
-        profile.style.setProperty('--rx', rotateX + 'deg');
-        profile.style.setProperty('--ry', rotateY + 'deg');
+        profile.style.setProperty('--rx', (0.5 - y) * 9 + 'deg');
+        profile.style.setProperty('--ry', (x - 0.5) * 9 + 'deg');
     });
 
     profile.addEventListener('pointerleave', () => {
@@ -61,18 +57,6 @@ function formatTime(seconds) {
     return `${minutes}:${String(secondsLeft).padStart(2, '0')}`;
 }
 
-async function startMusic() {
-    if (!audio) return;
-
-    try {
-        await audio.play();
-        if (playerHint) playerHint.textContent = 'NOW PLAYING';
-    } catch (error) {
-        if (playerHint) playerHint.textContent = 'PRESS PLAY';
-        console.log('Браузер ожидает нажатия пользователя для запуска музыки.');
-    }
-}
-
 function updatePlayerState() {
     if (!audio || !playBtn) return;
 
@@ -80,16 +64,29 @@ function updatePlayerState() {
         playBtn.textContent = '▶';
         playBtn.setAttribute('aria-label', 'Воспроизвести');
         playingIndicator?.classList.remove('active');
+
         if (playerHint) playerHint.textContent = 'PAUSED';
     } else {
         playBtn.textContent = 'Ⅱ';
         playBtn.setAttribute('aria-label', 'Пауза');
         playingIndicator?.classList.add('active');
+
         if (playerHint) playerHint.textContent = 'NOW PLAYING';
     }
 }
 
-if (audio && playBtn && progress) {
+async function startMusic() {
+    if (!audio) return;
+
+    try {
+        await audio.play();
+    } catch (error) {
+        if (playerHint) playerHint.textContent = 'PRESS PLAY';
+        console.error('Ошибка запуска музыки:', error);
+    }
+}
+
+if (audio && playBtn) {
     playBtn.addEventListener('click', async () => {
         if (audio.paused) {
             await startMusic();
@@ -102,50 +99,42 @@ if (audio && playBtn && progress) {
     audio.addEventListener('pause', updatePlayerState);
 
     audio.addEventListener('loadedmetadata', () => {
-        durationEl.textContent = formatTime(audio.duration);
-    });
-
-    audio.addEventListener('durationchange', () => {
-        if (Number.isFinite(audio.duration)) {
-            durationEl.textContent = formatTime(audio.duration);
-        }
+        if (durationEl) durationEl.textContent = formatTime(audio.duration);
     });
 
     audio.addEventListener('timeupdate', () => {
-        currentTimeEl.textContent = formatTime(audio.currentTime);
+        if (currentTimeEl) {
+            currentTimeEl.textContent = formatTime(audio.currentTime);
+        }
 
-        if (Number.isFinite(audio.duration) && audio.duration > 0) {
+        if (progress && Number.isFinite(audio.duration) && audio.duration > 0) {
             progress.value = (audio.currentTime / audio.duration) * 100;
         }
     });
 
-    progress.addEventListener('input', () => {
-        if (Number.isFinite(audio.duration) && audio.duration > 0) {
-            audio.currentTime = (Number(progress.value) / 100) * audio.duration;
-        }
-    });
+    if (progress) {
+        progress.addEventListener('input', () => {
+            if (Number.isFinite(audio.duration) && audio.duration > 0) {
+                audio.currentTime = (Number(progress.value) / 100) * audio.duration;
+            }
+        });
+    }
 
     audio.addEventListener('ended', () => {
-        progress.value = 0;
-        currentTimeEl.textContent = '0:00';
+        if (progress) progress.value = 0;
+        if (currentTimeEl) currentTimeEl.textContent = '0:00';
         updatePlayerState();
     });
 
-    // Пытаемся включить музыку сразу при открытии страницы
-    window.addEventListener('load', () => {
-        startMusic();
+    audio.addEventListener('error', () => {
+        if (playerHint) playerHint.textContent = 'AUDIO ERROR';
+        console.error('Не удалось загрузить music.mp3');
     });
 
-    // Если браузер заблокировал автозапуск, пробуем после первого нажатия
-    document.addEventListener('pointerdown', (event) => {
-        if (event.target.closest('#playBtn')) return;
-        if (audio.paused) startMusic();
-    }, { once: true });
+    updatePlayerState();
 }
 
-
-
-// CLICK TO ENTER
+// CLICK TO ENTER — единственное место автоматического запуска
 const enterScreen = document.getElementById('enter-screen');
 
 if (enterScreen) {
@@ -155,17 +144,10 @@ if (enterScreen) {
         enterScreen.classList.add('is-leaving');
         document.body.classList.remove('enter-locked');
 
-        const audio = document.getElementById('audio');
+        await startMusic();
 
-        if (audio) {
-            try {
-                await audio.play();
-            } catch (error) {
-                console.log('Нажми кнопку Play в плеере:', error);
-            }
-        }
-
-        setTimeout(() => enterScreen.remove(), 850);
+        setTimeout(() => {
+            enterScreen.remove();
+        }, 850);
     }, { once: true });
 }
-
