@@ -110,8 +110,38 @@
     <script src="./script.js"></script>
 <script data-goatcounter="https://flugerok.goatcounter.com/count"
         async src="//gc.zgo.at/count.js"></script>
+<div id="visitor-counter" class="visitor-counter">
+    <div class="visitor-eye">◉</div>
+    <div class="visitor-info">
+        <span id="visitorCount">...</span>
+        <span class="visitor-label">TOTAL VISITS</span>
+    </div>
+</div>
+
+<script>
+(async function () {
+    const output = document.getElementById('visitorCount');
+    if (!output) return;
+
+    try {
+        const path = window.location.pathname;
+        const url = 'https://flugerok.goatcounter.com/counter/'
+            + encodeURIComponent(path) + '.json';
+
+        const response = await fetch(url);
+        if (!response.ok) throw new Error('Counter unavailable');
+
+        const data = await response.json();
+        output.textContent = data.count;
+    } catch (error) {
+        output.textContent = '—';
+        console.error('Ошибка счётчика:', error);
+    }
+})();
+</script>
 </body>
 </html>
+
 
 
 
